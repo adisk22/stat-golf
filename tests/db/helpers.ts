@@ -73,3 +73,21 @@ export async function ok(p: PromiseLike<{ error: unknown }>): Promise<void> {
   const { error } = await p;
   if (error) throw error;
 }
+
+/** Creates a confirmed email user (optionally an admin) and returns a client signed in as them. */
+export async function emailUser(opts: { admin?: boolean } = {}): Promise<{ client: Client; userId: string; email: string }> {
+  const env = localEnv();
+  const service = serviceClient();
+  const email = `test-${crypto.randomUUID()}@example.test`;
+  const password = `pw-${crypto.randomUUID()}`;
+  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error || !data.user) throw error ?? new Error("createUser failed");
+  if (opts.admin) {
+    const { error: pErr } = await service.from("profiles").update({ is_admin: true }).eq("user_id", data.user.id);
+    if (pErr) throw pErr;
+  }
+  const client = createClient<Database>(env.url, env.anonKey, noPersist);
+  const { error: sErr } = await client.auth.signInWithPassword({ email, password });
+  if (sErr) throw sErr;
+  return { client, userId: data.user.id, email };
+}
