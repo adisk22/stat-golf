@@ -20,49 +20,121 @@ Tailwind · Vitest · Playwright · deployed on Vercel.
 | M5 | Archive + polish | – |
 | M6 | First scraper | – |
 
-## Local setup
+## Setup: hosted Supabase + Vercel (no Docker)
 
-Requirements: Node 22+, pnpm 10, Docker (for the local Supabase stack).
+This is the main path: GitHub Actions pushes the database, and Vercel hosts the site.
+Nothing needs to run on your machine.
+
+### 1. Supabase project
+
+Create a project at [supabase.com](https://supabase.com). From the dashboard, collect:
+
+| What | Where | Used as |
+| --- | --- | --- |
+| Project ID (ref) | Project Settings → General | `SUPABASE_PROJECT_ID` |
+| Project URL | `https://<project-id>.supabase.co` | `NEXT_PUBLIC_SUPABASE_URL` |
+| Publishable key (`sb_publishable_…`) | Project Settings → API Keys | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| Secret key (`sb_secret_…`) | Project Settings → API Keys | `SUPABASE_SERVICE_ROLE_KEY` (**server only**) |
+| Database password | set when creating the project (Database → Settings to reset) | `SUPABASE_DB_PASSWORD` |
+| Access token | [Account → Access Tokens](https://supabase.com/dashboard/account/tokens) | `SUPABASE_ACCESS_TOKEN` |
+
+Then, in the Supabase dashboard:
+
+- **Authentication → Sign In / Providers:** turn on **Allow anonymous sign-ins** (players
+  start as guests). Email is on by default; Google comes in M3.
+- **Authentication → URL Configuration:** set **Site URL** to your Vercel URL and add
+  `https://<your-domain>/auth/callback` to the redirect URLs (needed from M3).
+- **Authentication → Rate Limits:** the default anonymous sign-in limit is 30 per hour per
+  IP; raise it if many players share a network.
+- **Authentication → Attack Protection** (recommended before sharing widely): enable CAPTCHA
+  with **Cloudflare Turnstile**. Create a Turnstile widget at
+  [dash.cloudflare.com](https://dash.cloudflare.com) for your domain, paste its **secret key**
+  here, and put its **site key** in Vercel as `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+
+### 2. GitHub: push the database
+
+Repo **Settings → Secrets and variables → Actions**:
+
+- **Secrets:** `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`
+- **Variables:** `SUPABASE_PROJECT_ID`, plus for the dev project only
+  `SUPABASE_ENV=dev` and `SUPABASE_DEV_PROJECT_ID` (same ID).
+
+Then **Actions → Deploy database → Run workflow**. Tick *seed* to load the fake demo puzzles.
+After that, every merge to `main` that changes `supabase/migrations/` deploys automatically.
+
+**Actions → Reset dev database** wipes the dev project, re-applies migrations and re-seeds
+(the demo puzzles are dated yesterday/today/tomorrow relative to the reset). It refuses unless
+`SUPABASE_ENV=dev` and you type the dev project ID.
+
+### 3. Vercel: host the site
+
+1. [vercel.com/new](https://vercel.com/new) → import `stat-golf` (framework: Next.js, defaults).
+2. **Environment Variables** (Production and Preview):
+
+   | Name | Value |
+   | --- | --- |
+   | `NEXT_PUBLIC_SUPABASE_URL` | `https://<project-id>.supabase.co` |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the publishable key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | the **secret** key. Server-only: never prefix with `NEXT_PUBLIC_` |
+   | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | optional, see above |
+
+3. Deploy. Vercel redeploys on every push to `main` and builds previews for PRs.
+
+The secret key bypasses Row Level Security. It lives only in Vercel's environment and in
+`lib/supabase/admin.ts`, which imports `server-only` so a client import fails the build. Never
+commit it or paste it anywhere public.
+
+### Database scripts (optional, from a terminal)
+
+The same commands the workflows run, using `.env.local` or your shell environment
+(`SUPABASE_PROJECT_ID`, `SUPABASE_DB_PASSWORD`, `SUPABASE_ACCESS_TOKEN`). No Docker needed.
 
 ```bash
-pnpm install
-pnpm db:start        # starts Postgres, Auth, REST, Mailpit in Docker
-pnpm env:local       # writes .env.local from the running stack
-pnpm db:reset        # applies migrations and supabase/seed.sql
-pnpm dev             # http://localhost:3000
+pnpm db:push          # link the CLI to the project and push migrations
+pnpm db:push --seed   # ...and load supabase/seed.sql once
+pnpm db:reset         # WIPES the project; refuses unless SUPABASE_ENV=dev and the ID matches SUPABASE_DEV_PROJECT_ID
 ```
-
-`pnpm db:start` pulls several images on the first run. If the default registry is
-blocked on your network, set `SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io`.
-To skip services the app doesn't use:
-
-```bash
-pnpm supabase start -x studio,imgproxy,vector,logflare,supavisor,realtime,storage-api,edge-runtime,postgres-meta
-```
-
-Local email (magic links) is caught by Mailpit: run `pnpm supabase status` for its URL.
 
 ### Seed data
 
 `supabase/seed.sql` creates 26 fictional clubs, 6 fictional players, 10 questions titled
 **"SAMPLE — not real data"**, and three published puzzles (yesterday, today, tomorrow,
-relative to the day you run the reset). All names and numbers are invented.
+relative to the day it runs). All names and numbers are invented. Real puzzles come from
+the admin import (M4).
+
+## Optional: local Docker stack
+
+Only needed to run the database and e2e tests on your own machine; CI already runs them
+on every PR. Requires Docker.
+
+```bash
+pnpm install
+pnpm db:start          # Postgres, Auth, REST, Mailpit in Docker
+pnpm env:local         # writes .env.local (with SUPABASE_ENV=dev) from the running stack
+pnpm db:reset:local    # applies migrations and supabase/seed.sql
+pnpm dev               # http://localhost:3000
+```
+
+If image pulls fail, set `SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io`. To skip services
+the app doesn't use:
+
+```bash
+pnpm supabase start -x studio,imgproxy,vector,logflare,supavisor,realtime,storage-api,edge-runtime,postgres-meta
+```
 
 ### Tests
 
 ```bash
-pnpm test        # unit tests (scoring, ranking helpers)
+pnpm test        # unit tests: no database needed
 pnpm test:db     # database tests against the local stack (RLS, triggers, merge, streaks)
-pnpm test:e2e    # Playwright: starts `pnpm dev` (or reuses one on :3000) against the local stack
+pnpm test:e2e    # Playwright against `pnpm dev` and the local stack
 pnpm typecheck
 pnpm lint
 ```
 
 For e2e, install a browser once with `pnpm exec playwright install chromium`, or point
-`PLAYWRIGHT_CHROMIUM_PATH` at an existing Chrome/Chromium.
-
-`pnpm test:db` and `pnpm test:e2e` need the local stack running and seeded. It creates throwaway anonymous
-users and plays; run `pnpm db:reset` for a clean slate.
+`PLAYWRIGHT_CHROMIUM_PATH` at an existing Chrome/Chromium. The DB and e2e tests create
+throwaway users, so point them at the local stack, not the hosted project.
 
 ### Regenerating database types
 
@@ -124,34 +196,13 @@ Rate limits (per user, per minute): 20 guesses, 90 searches, 120 state loads.
 
 ## Making a user an admin
 
-Sign in once so the user and profile exist, then run (local: `psql` on port 54322, hosted:
-the Supabase SQL editor):
+Sign in once so the user and profile exist, then run this in the Supabase dashboard's
+**SQL Editor**:
 
 ```sql
 update public.profiles set is_admin = true
 where user_id = (select id from auth.users where email = 'you@example.com');
 ```
-
-## Deploying
-
-1. Create a Supabase project. Link and push the schema:
-   ```bash
-   pnpm supabase link --project-ref <ref>
-   pnpm supabase db push
-   ```
-   Don't run the seed against production.
-2. In the Supabase dashboard:
-   - **Authentication → Sign In / Providers:** enable *Anonymous sign-ins*, *Email* (magic
-     link) and *Google*.
-   - **Authentication → Attack Protection:** enable CAPTCHA with **Cloudflare Turnstile** and
-     paste the Turnstile secret key.
-   - **Authentication → URL Configuration:** set the site URL to your Vercel domain and add
-     `https://<domain>/auth/callback` as a redirect URL.
-   - **Database → Extensions:** check `pg_cron` is enabled (the migration creates it).
-3. In Vercel, import the repo and set the env vars from [`.env.example`](.env.example).
-   `SUPABASE_SERVICE_ROLE_KEY` must be set as a server-side variable only (never
-   `NEXT_PUBLIC_`).
-4. Deploy.
 
 ## Project layout
 
