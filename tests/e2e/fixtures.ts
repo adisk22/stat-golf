@@ -25,3 +25,20 @@ export async function todaysTargets() {
 }
 
 export { dayOffset };
+
+/** Creates a confirmed user (admin unless told otherwise) and signs the page in via a magic-link token. */
+export async function signInAs(page: import("@playwright/test").Page, opts: { admin?: boolean; next?: string } = {}) {
+  const db = serviceClient();
+  const email = `e2e-${crypto.randomUUID()}@example.test`;
+  const { data: created, error } = await db.auth.admin.createUser({ email, email_confirm: true });
+  if (error || !created.user) throw error ?? new Error("createUser failed");
+  if (opts.admin !== false) {
+    const { error: pErr } = await db.from("profiles").update({ is_admin: true }).eq("user_id", created.user.id);
+    if (pErr) throw pErr;
+  }
+  const { data: link, error: lErr } = await db.auth.admin.generateLink({ type: "magiclink", email });
+  if (lErr) throw lErr;
+  const next = encodeURIComponent(opts.next ?? "/admin");
+  await page.goto(`/auth/confirm?token_hash=${link.properties.hashed_token}&type=magiclink&next=${next}`);
+  return { email, userId: created.user.id };
+}
