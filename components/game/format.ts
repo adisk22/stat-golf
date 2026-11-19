@@ -10,6 +10,6 @@ export function formatValue(v: number | null): string {
 }
 
 export function strokesLabel(strokes: number): string {
-  if (strokes === 0) return "Hole in one!";
+  if (strokes === 0) return "0 strokes";
   return `${strokes} stroke${strokes === 1 ? "" : "s"}`;
 }
