@@ -9,11 +9,72 @@
   --color-fairway-600: #2e7d43;
   --color-fairway-700: #256438;
   --color-fairway-800: #1f502f;
+  --color-fairway-900: #153a22;
+  --color-paper: #fbf7ea;
+  --color-paper-line: #e4dcc3;
+  --color-pencil: #2b3442;
+  --color-flag: #d9363e;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-hand: var(--font-hand-src), "Comic Sans MS", cursive;
+  --font-card: var(--font-card-src), "Arial Narrow", sans-serif;
+
+  --animate-flag-wave: flag-wave 0.9s ease-in-out 3;
+  --animate-fade-in: fade-in 0.4s ease-out both;
+  --animate-ball-wobble: ball-wobble 0.6s ease-in-out infinite;
+  --animate-rise-in: rise-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-stamp: stamp 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  --animate-pencil: pencil 0.5s ease-out both;
+
+  @keyframes flag-wave {
+    0%, 100% { transform: skewY(0deg) scaleX(1); }
+    50% { transform: skewY(-6deg) scaleX(0.92); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes ball-wobble {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-8deg); }
+    75% { transform: rotate(8deg); }
+  }
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes stamp {
+    0% { opacity: 0; transform: scale(2.2) rotate(-12deg); }
+    70% { opacity: 1; transform: scale(0.92) rotate(-4deg); }
+    100% { opacity: 1; transform: scale(1) rotate(-4deg); }
+  }
+  @keyframes pencil {
+    from { opacity: 0; transform: translateY(-4px) rotate(-6deg); }
+    to { opacity: 1; transform: none; }
+  }
 }
 
 body {
-  background: #f6f8f4;
   color: #18181b;
+  /* Mown-fairway stripes. */
+  background-color: #e9f2e2;
+  background-image: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.35) 0 64px, transparent 64px 128px);
+}
+
+/* Ruled card stock. */
+.paper {
+  background-color: var(--color-paper);
+  background-image: repeating-linear-gradient(0deg, transparent 0 27px, rgb(0 0 0 / 0.025) 27px 28px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Pennant-shaped flag for the target. */
+.flag-pennant {
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 50%, 100% 100%, 0 100%);
 }
