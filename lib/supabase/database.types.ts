@@ -197,7 +197,29 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "search_entities":
+            "admin_match_entities":
+{ Args: { "p_names": (string)[],"p_sport"?: string,"p_type": Database["public"]['Enums']["entity_type"] }; Returns: {
+              "candidates": Json,"entity_id": string,"idx": number,"input": string,"method": string
+            }[]
+                           },
+"admin_merge_entities":
+{ Args: { "p_keep": string,"p_remove": string }; Returns: undefined
+                           },
+"admin_question_overview":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "answer_type": Database["public"]['Enums']["entity_type"],"data_as_of": string,"id": string,"locked": boolean,"prompt": string,"row_count": number,"stat_label": string,"status": Database["public"]['Enums']["question_status"],"updated_at": string,"used_dates": (string)[],"value_order": Database["public"]['Enums']["value_order"]
+            }[]
+                           },
+"admin_replace_ranking":
+{ Args: { "p_question_id": string,"p_rows": Json }; Returns: number
+                           },
+"admin_save_puzzle":
+{ Args: { "p_date": string,"p_holes": Json }; Returns: (string)[]
+                           },
+"admin_set_published":
+{ Args: { "p_date": string,"p_published": boolean }; Returns: undefined
+                           },
+"search_entities":
 { Args: { "p_limit"?: number,"p_query": string,"p_sport"?: string,"p_type": Database["public"]['Enums']["entity_type"] }; Returns: {
               "country": string,"disambiguation": string,"id": string,"name": string,"score": number
             }[]
