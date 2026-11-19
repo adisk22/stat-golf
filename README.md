@@ -14,7 +14,7 @@ Tailwind · Vitest · Playwright · deployed on Vercel.
 | Milestone | Scope | State |
 | --- | --- | --- |
 | M1 | Schema, RLS, seed, scoring module + tests | done |
-| M2 | Anonymous daily play loop | – |
+| M2 | Anonymous daily play loop | done |
 | M3 | Auth, account merge, stats, streaks, leaderboards | – |
 | M4 | Admin (CSV import, matching, scheduler) | – |
 | M5 | Archive + polish | – |
@@ -53,11 +53,15 @@ relative to the day you run the reset). All names and numbers are invented.
 ```bash
 pnpm test        # unit tests (scoring, ranking helpers)
 pnpm test:db     # database tests against the local stack (RLS, triggers, merge, streaks)
+pnpm test:e2e    # Playwright: starts `pnpm dev` (or reuses one on :3000) against the local stack
 pnpm typecheck
 pnpm lint
 ```
 
-`pnpm test:db` needs the local stack running and seeded. It creates throwaway anonymous
+For e2e, install a browser once with `pnpm exec playwright install chromium`, or point
+`PLAYWRIGHT_CHROMIUM_PATH` at an existing Chrome/Chromium.
+
+`pnpm test:db` and `pnpm test:e2e` need the local stack running and seeded. It creates throwaway anonymous
 users and plays; run `pnpm db:reset` for a clean slate.
 
 ### Regenerating database types
@@ -104,6 +108,20 @@ A "day" is a date in `ROLLOVER_TIMEZONE` (default UTC). The SQL side has a copy 
 `app.rollover_timezone()`; **change both together**. A streak counts consecutive days with
 a completed, non-archive play; missing a day resets the current streak to 0.
 
+## How a round works
+
+1. The browser signs in anonymously (after a Turnstile check when
+   `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set).
+2. `GET /api/play/today` returns the scorecard. Only the current hole carries its prompt
+   and target; later holes are just `{status: "locked", holeNumber, par}`. Played holes include
+   the guess and a reveal slice (target ±5 rows, plus the guess if it falls outside).
+3. The autocomplete calls `GET /api/entities/search?type=club&q=…`, which searches every entity
+   of that type.
+4. `POST /api/play/today/guess {holeNumber, entityId}` scores the guess on the server with
+   `lib/scoring.ts`, stores it, and completes the play after the last hole.
+
+Rate limits (per user, per minute): 20 guesses, 90 searches, 120 state loads.
+
 ## Making a user an admin
 
 Sign in once so the user and profile exist, then run (local: `psql` on port 54322, hosted:
@@ -146,5 +164,8 @@ lib/supabase/        clients (admin = service role, server-only) and generated t
 supabase/            config, migrations, seed
 scripts/             dev scripts; scrapers/ in M6
 tests/db/            database integration tests
-tests/e2e/           Playwright tests (from M2)
+tests/e2e/           Playwright tests
+components/game/     play loop UI (scorecard, autocomplete, reveal, end screen)
+lib/server/          server-only game service, auth, rate limiting
+proxy.ts             refreshes the Supabase session cookie (Next 16 "proxy", formerly middleware)
 ```
