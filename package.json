@@ -14,10 +14,12 @@
     "supabase": "supabase",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
-    "db:reset": "supabase db reset",
+    "db:reset": "node --env-file-if-exists=.env.local scripts/db.mjs reset",
     "db:types": "supabase gen types typescript --local > lib/supabase/database.types.ts",
     "env:local": "node scripts/env-from-supabase.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:push": "node --env-file-if-exists=.env.local scripts/db.mjs push",
+    "db:reset:local": "node --env-file-if-exists=.env.local scripts/db.mjs reset --local"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

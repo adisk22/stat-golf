@@ -10,6 +10,7 @@ const lines = [
   `NEXT_PUBLIC_SUPABASE_ANON_KEY=${status.ANON_KEY}`,
   "NEXT_PUBLIC_TURNSTILE_SITE_KEY=",
   `SUPABASE_SERVICE_ROLE_KEY=${status.SERVICE_ROLE_KEY}`,
+  "SUPABASE_ENV=dev",
   "",
 ];
 if (existsSync(".env.local") && !process.argv.includes("--force")) {
