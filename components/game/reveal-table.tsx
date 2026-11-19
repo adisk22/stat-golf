@@ -2,29 +2,19 @@ import { EntityBadge } from "@/components/ui/entity-badge";
 import type { PlayedHole } from "@/lib/game-types";
 import type { RevealRow } from "@/lib/reveal";
 import { formatPuzzleDate } from "@/lib/dates";
-import { formatValue, ordinal, strokesLabel } from "./format";
+import { formatValue } from "./format";
+import { ShotResult } from "./shot-result";
 
 /** After a guess: the guess's rank and value, strokes, and the table around the target. */
 export function HoleReveal({ hole }: { hole: PlayedHole }) {
-  const { guess, reveal } = hole;
+  const { reveal } = hole;
   return (
-    <div className="space-y-4" data-testid={`reveal-${hole.holeNumber}`}>
-      <div className="rounded-lg bg-fairway-50 p-4 text-center">
-        <p className="text-sm text-zinc-600">
-          <span className="font-semibold text-zinc-900">{guess.name}</span>{" "}
-          {guess.actualRank === null
-            ? "isn't in this ranking."
-            : `ranks ${ordinal(guess.actualRank)} with ${formatValue(guess.actualValue)} (${hole.statLabel.toLowerCase()}).`}
-        </p>
-        <p className="mt-1 text-2xl font-bold text-fairway-800" data-testid="hole-result">
-          {strokesLabel(guess.strokes)}
-        </p>
-        <p className="text-xs text-zinc-500">Target was {ordinal(hole.targetRank)}</p>
-      </div>
+    <div className="animate-rise-in space-y-3" data-testid={`reveal-${hole.holeNumber}`}>
+      <ShotResult hole={hole} />
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200">
+      <div className="paper overflow-hidden rounded-lg border border-[#d8cfb3]">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+          <thead className="bg-fairway-800 font-card text-xs uppercase tracking-widest text-paper">
             <tr>
               <th className="w-12 px-2 py-1.5 text-right">#</th>
               <th className="px-2 py-1.5 text-left">Name</th>
@@ -66,14 +56,14 @@ export function HoleReveal({ hole }: { hole: PlayedHole }) {
 function Row({ r }: { r: RevealRow }) {
   const tone = r.isGuess && r.isTarget ? "bg-fairway-200" : r.isGuess ? "bg-amber-100" : r.isTarget ? "bg-fairway-100" : "";
   return (
-    <tr className={`border-t border-zinc-100 ${tone}`} data-target={r.isTarget || undefined} data-guess={r.isGuess || undefined}>
+    <tr className={`border-t border-paper-line ${tone}`} data-target={r.isTarget || undefined} data-guess={r.isGuess || undefined}>
       <td className="px-2 py-1.5 text-right tabular-nums text-zinc-500">{r.rank}</td>
       <td className="px-2 py-1.5">
         <span className="flex items-center gap-2">
           <EntityBadge name={r.name} size={20} />
           <span className={r.isTarget || r.isGuess ? "font-semibold" : ""}>{r.name}</span>
-          {r.isTarget && <span className="rounded bg-fairway-700 px-1 text-[10px] font-semibold text-white">TARGET</span>}
-          {r.isGuess && <span className="rounded bg-amber-500 px-1 text-[10px] font-semibold text-white">YOU</span>}
+          {r.isTarget && <span className="rounded-sm bg-flag px-1 font-card text-[10px] font-semibold tracking-wider text-white">⛳ PIN</span>}
+          {r.isGuess && <span className="rounded-sm bg-pencil px-1 font-card text-[10px] font-semibold tracking-wider text-white">YOUR BALL</span>}
         </span>
       </td>
       <td className="px-2 py-1.5 text-right tabular-nums">{formatValue(r.value)}</td>

@@ -147,7 +147,7 @@ export function GuessInput({ answerType, disabled, onSubmit }: Props) {
       <button
         type="submit"
         disabled={disabled || !selected}
-        className="w-full rounded-lg bg-fairway-700 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-fairway-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+        className="w-full rounded-lg bg-flag px-4 py-3 font-card text-lg font-semibold uppercase tracking-wider text-white shadow-[inset_0_-4px_0_rgb(0_0_0/0.2)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none"
       >
         {disabled ? "Scoring…" : "Take the shot"}
       </button>
