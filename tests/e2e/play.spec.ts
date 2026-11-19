@@ -17,7 +17,8 @@ test("anonymous play-through of today's seeded round", async ({ page, context })
   // Hole 1: guess the exact target entity -> hole in one.
   await expect(page.getByTestId("prompt")).toContainText("SAMPLE — not real data");
   await guess(page, targets[0]!.targetName, targets[0]!.targetName);
-  await expect(page.getByTestId("hole-result")).toHaveText("Hole in one!");
+  await expect(page.getByTestId("score-name")).toHaveText("Hole in one!");
+  await expect(page.getByTestId("hole-result")).toHaveText("0 strokes");
   await expect(page.getByTestId("reveal-1").locator("tr[data-target][data-guess]")).toHaveCount(1);
   await expect(page.getByTestId("strokes-1")).toHaveText("0");
 
@@ -37,7 +38,7 @@ test("anonymous play-through of today's seeded round", async ({ page, context })
   for (let n = 1; n <= targets.length; n++) sum += Number(await page.getByTestId(`strokes-${n}`).textContent());
   expect(total).toBe(sum);
 
-  await end.getByRole("button", { name: "Share result" }).click();
+  await end.getByRole("button", { name: "Share scorecard" }).click();
   await expect(end.getByRole("status")).toHaveText("Copied to clipboard");
   const shared = await page.evaluate(() => navigator.clipboard.readText());
   expect(shared).toMatch(new RegExp(`^Stat Golf #\\d+  ⛳ ${total} \\((E|[+-]\\d+)\\)\\n🟢(🟢|🟡|🟠|🔴){${targets.length - 1}}`, "u"));
@@ -53,7 +54,7 @@ test("refresh mid-round keeps progress and a hole can't be guessed twice", async
   const strokes1 = await page.getByTestId("strokes-1").textContent();
 
   await page.reload();
-  await expect(page.getByText("Hole 2 · par")).toBeVisible();
+  await expect(page.getByTestId("hole-number")).toHaveText("2");
   await expect(page.getByTestId("strokes-1")).toHaveText(strokes1!);
 
   // Replaying hole 1 through the API is rejected.
