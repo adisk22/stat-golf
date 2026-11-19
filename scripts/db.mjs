@@ -21,7 +21,8 @@ function fail(msg) {
 
 function supabase(...args) {
   const res = spawnSync("pnpm", ["exec", "supabase", ...args], { stdio: "inherit" });
-  if (res.status !== 0) fail(`supabase ${args.join(" ")} failed`);
+  // Print only the subcommand, never the arguments (they include the password).
+  if (res.status !== 0) fail(`supabase ${args.slice(0, 2).join(" ")} failed`);
 }
 
 function requireEnv(name) {
@@ -45,7 +46,11 @@ switch (command) {
   case "push": {
     const ref = link();
     console.log(`Pushing migrations to ${ref}…`);
-    supabase("db", "push", ...(flags.includes("--seed") ? ["--include-seed"] : []));
+    // CLI v3 targets the local database by default; --remote picks the hosted project.
+    supabase(
+      "db", "push", `--remote=${ref}`, "--password", process.env.SUPABASE_DB_PASSWORD, "--yes",
+      ...(flags.includes("--seed") ? ["--include-seed"] : []),
+    );
     break;
   }
   case "reset": {
@@ -63,7 +68,7 @@ switch (command) {
     }
     const ref = link();
     console.log(`Resetting dev project ${ref}…`);
-    supabase("db", "reset", "--linked", "--yes");
+    supabase("db", "reset", `--remote=${ref}`, "--password", process.env.SUPABASE_DB_PASSWORD, "--yes");
     break;
   }
   default:
