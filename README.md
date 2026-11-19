@@ -16,7 +16,7 @@ Tailwind · Vitest · Playwright · deployed on Vercel.
 | M1 | Schema, RLS, seed, scoring module + tests | done |
 | M2 | Anonymous daily play loop | done |
 | M3 | Auth, account merge, stats, streaks, leaderboards | – |
-| M4 | Admin (CSV import, matching, scheduler) | – |
+| M4 | Admin (CSV import, matching, scheduler) | done |
 | M5 | Archive + polish | – |
 | M6 | First scraper | – |
 
@@ -194,15 +194,67 @@ a completed, non-archive play; missing a day resets the current streak to 0.
 
 Rate limits (per user, per minute): 20 guesses, 90 searches, 120 state loads.
 
-## Making a user an admin
+## Admin
 
-Sign in once so the user and profile exist, then run this in the Supabase dashboard's
-**SQL Editor**:
+### Becoming an admin
 
-```sql
-update public.profiles set is_admin = true
-where user_id = (select id from auth.users where email = 'you@example.com');
-```
+1. Make sure Supabase **Authentication → URL Configuration** has your site URL and
+   `https://<your-site>/auth/callback` in the redirect URLs.
+2. Go to `https://<your-site>/login`, enter your email and click the link in the email.
+   (Supabase's built-in email sender allows only a few emails per hour; plenty for admins.)
+3. In the Supabase dashboard's **SQL Editor**, run:
+
+   ```sql
+   update public.profiles set is_admin = true
+   where user_id = (select id from auth.users where email = 'you@example.com');
+   ```
+
+4. Open `https://<your-site>/admin`.
+
+Every `/api/admin/*` endpoint checks the session and `is_admin`, and the admin database
+functions check `is_admin` again, so the page guard is only a convenience.
+
+### Adding a question
+
+1. **Questions → New question:** prompt, answer type (club/player/nation), ranking order
+   (highest or lowest value first), stat label, scope note, source and "data as of" date.
+2. **Import ranking (CSV):** upload or paste a file with a header row:
+
+   ```csv
+   rank,name,value
+   1,Example FC,123
+   2,Sample United,120
+   2,Another Town,120
+   4,Fourth City,98
+   ```
+
+   Rows must be sorted by rank with values in the declared order. Ties share a rank and the
+   next rank skips (1, 2, 2, 4); any other gap is rejected with the line number. Store the full
+   list where possible, or at least `target + 15` rows, so only genuinely unranked guesses get
+   the off-list penalty.
+3. **Review matches:** each name is matched to an entity by exact name, then alias, then fuzzy
+   similarity. Exact and alias matches are pre-confirmed; fuzzy ones need a tick. For any row
+   you can pick another suggestion, search for a different entity, or create a new one inline.
+   The same entity can't appear twice. Saving replaces the ranking.
+4. **Mark ready** to make it available to the scheduler.
+
+A question's ranking is locked once it appears in a published puzzle.
+
+### Scheduling
+
+**Schedule** shows a month calendar: green = published, amber = draft, red outline = no
+puzzle in the next 7 days. Open a day to add 3–5 holes. For each hole pick a ready question,
+a target rank (only ranks some entity actually holds are offered, so a target can't fall
+inside a tie), and par. The editor warns when a question was used within 60 days or has fewer
+than `target + 15` rows. **Preview** shows the holes as players see them. **Save draft**, then
+**Publish**. A published day can be unpublished to edit it until someone has played it.
+
+### Entities
+
+Search clubs, players and nations; edit names, aliases (used by matching and autocomplete),
+country and disambiguation; or **Merge** a duplicate into the entity to keep. Merging moves
+its rankings and players' past guesses, keeps its name as an alias, and deletes it. It refuses
+if both are in the same ranking.
 
 ## Project layout
 
@@ -217,6 +269,9 @@ scripts/             dev scripts; scrapers/ in M6
 tests/db/            database integration tests
 tests/e2e/           Playwright tests
 components/game/     play loop UI (scorecard, autocomplete, reveal, end screen)
+components/admin/    admin UI (question form, CSV import + review, entity picker)
+lib/csv/             CSV parser and ranking validator
+lib/admin-checks.ts  scheduler checks shared by the editor and the server
 lib/server/          server-only game service, auth, rate limiting
 proxy.ts             refreshes the Supabase session cookie (Next 16 "proxy", formerly middleware)
 ```
